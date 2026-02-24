@@ -62,5 +62,19 @@ const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
 
 const displayMovements = function (movements) {
+  containerMovements.innerHTML = '';
+  movements.forEach(function (mov, i) {
+    const movType = mov > 0 ? "deposit" : "withdrawal";
+    const movEl =
+      `
+    <div class="movements__row">
+      <div class="movements__type movements__type--${movType}">${i + 1} ${movType}</div>
+      <div class="movements__value">${mov}</div>
+    </div>
+    `;
+    containerMovements.insertAdjacentHTML("afterbegin", movEl);
+
+  });
 
 }
+displayMovements(account1.movements);
