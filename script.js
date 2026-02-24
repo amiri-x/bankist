@@ -7,7 +7,7 @@
 // Data
 const account1 = {
   owner: 'Abufazl Amiri',
-  movements: [200, 450, -400, 3000, -650, -130, 70, 1300],
+  movements: [200, 450, -400, 3000, -650, -130, -70.01, 1300],
   interestRate: 1.2, // %
   pin: '1011',
 };
@@ -61,20 +61,93 @@ const inputLoanAmount = document.querySelector('.form__input--loan-amount');
 const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
 
+
+const createUsernames = function (accs) {
+  accs.forEach(function (acc) {
+    acc.username =
+      acc.owner
+        .trim()
+        .toLowerCase()
+        .split(" ")
+        .map(uname => uname[0])
+        .join("");
+  });
+}
+createUsernames(accounts);
+
+// to format numbers as money: 10 => 10.00
+const formatMonies = function (accs) {
+  accs.forEach(function (acc) {
+    acc.movements = acc.movements.map(mov => Number(mov.toFixed(2)));
+  });
+}
+formatMonies(accounts);
+
+
+
+
+
 const displayMovements = function (movements) {
   containerMovements.innerHTML = '';
   movements.forEach(function (mov, i) {
     const movType = mov > 0 ? "deposit" : "withdrawal";
     const movEl =
       `
-    <div class="movements__row">
-      <div class="movements__type movements__type--${movType}">${i + 1} ${movType}</div>
-      <div class="movements__value">${mov}</div>
-    </div>
-    `;
+        <div class="movements__row">
+          <div class="movements__type movements__type--${movType}">${i + 1} ${movType}</div>
+          <div class="movements__value">${mov}</div>
+        </div>
+        `;
     containerMovements.insertAdjacentHTML("afterbegin", movEl);
 
   });
 
 }
 displayMovements(account1.movements);
+
+
+
+
+
+
+///////// helpers
+
+
+
+
+///////// chaging currencies 
+const euroToUsd = 1.09;
+const movementsUsds = account1.movements.map(function (mov) {
+  return (mov * euroToUsd).toFixed(2);
+});
+// console.log("--------- movements euros --------");
+// console.log(account1.movements);
+// console.log("--------- movements usds  --------");
+// console.log(movementsUsds);
+
+
+///////// creating arr for dopsit and withdrawals
+const deposits = account1.movements.filter(mov => mov > 0);
+const withdrawals = account1.movements.filter(mov => mov < 0);
+// console.log(deposits, withdrawals);
+
+// * just to make numbers have floating points: 20 => 20.00
+
+const parseMoneyToCents = function (str, decimalSeprator = ".") {
+  if (typeof str !== "string") {
+    throw new Error("Money must be sent as string.")
+  }
+  if (!/^-?\d+(\.\d{1,2})?$/.test(str)) {
+    throw new Error("Invalid money format. format e.g. ##.##, ##.#, ##");
+  }
+  const isNegative = str.startsWith("-");
+  const normalized = isNegative ? str.slice(1) : str;
+
+  const [major, minor = "00"] = normalized.split(`${decimalSeprator}`);
+  const value = Number(major) * 100 + Number(minor.padEnd(2, "0")); ''
+  return isNegative ? -value : value;
+}
+
+// accounts.forEach(function (acc) {
+//   acc.minors = acc.movements.map(mov => parseMoneyToCents(`${mov}`));
+// });
