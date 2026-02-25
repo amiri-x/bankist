@@ -103,16 +103,97 @@ const displayMovements = function (movements) {
   });
 
 }
-displayMovements(account1.movements);
 
+const calcAndDisplayBalance = function (movements) {
+  const balance = movements.reduce((acc, current) => acc + current, 0);
+  labelBalance.textContent = `$${balance.toFixed(2)}`;
+}
+calcAndDisplayBalance(account1.movements);
+
+// in
+const calcAndDisplayTotalIn = function (movements) {
+  const totalIn =
+    movements.filter(mov => mov > 0) // finding deposits
+      .reduce((acc, current) => acc + current, 0);
+  labelSumIn.textContent = `$${totalIn.toFixed(2)}`;
+}
+// out
+const calcAndDisplayTotalOut = function (movements) {
+  const totalOut = movements.filter(mov => mov < 0)
+    .reduce((acc, mov) => acc + mov, 0);
+  labelSumOut.textContent = `$${Math.abs(totalOut).toFixed(2)}`;
+}
+// interest
+const calcAndDisplayTotalInterest = function (movements, interestRate) {
+
+  const totalInterest = movements.filter(mov => mov > 0)
+    .map(mov => mov * (interestRate / 100))
+    .filter((int) => int >= 1) // only interests above 1
+    .reduce((acc, current) => acc + current);
+  labelSumInterest.textContent = `$${totalInterest.toFixed(2)}`;
+}
+
+let currentAccount;
+
+const displayAndUpdateUI = function () {
+  containerApp.style.opacity = "1";
+  inputTransferTo.focus();
+  inputLoginUsername.value = "";
+  inputLoginPin.value = "";
+
+
+}
+const showLoginFailure = function () {
+  const prevMsg = labelWelcome.textContent;
+  labelWelcome.textContent = "Wrong credentials.";
+  labelWelcome.style.color = "#dd1111"
+  setTimeout(() => {
+    labelWelcome.style.color = document.querySelector("body").style.color;
+    labelWelcome.textContent = prevMsg;
+  }, 5000);
+}
+
+const validateCredentials = function (username, pin) {
+  return accounts.find(
+    (acc) => username === acc.username
+      && pin === acc.pin);
+};
+
+
+// login
+btnLogin.addEventListener("click", (e) => {
+  // to prevent submiting (submitting reload the page)
+  e.preventDefault();
+  // validate credentials
+  currentAccount = validateCredentials(inputLoginUsername.value, inputLoginPin.value);
+
+  if (!currentAccount) {
+    showLoginFailure();
+    return;
+  }
+
+  console.log("logining...");
+  // display ui
+  displayAndUpdateUI();
+  // display welcome message with first name
+  labelWelcome.textContent = `Welcome back, ${currentAccount.owner.split(" ")[0]}`;
+  // display movements
+  displayMovements(currentAccount.movements);
+  // dispaly balance
+  calcAndDisplayBalance(currentAccount.movements);
+  // display sum
+  calcAndDisplayTotalIn(currentAccount.movements);
+  calcAndDisplayTotalOut(currentAccount.movements);
+  calcAndDisplayTotalInterest(currentAccount.movements, currentAccount.interestRate);
+
+  console.log(currentAccount);
+});
 
 
 
 
 
 ///////// helpers
-
-
 
 
 ///////// chaging currencies 
@@ -151,3 +232,29 @@ const parseMoneyToCents = function (str, decimalSeprator = ".") {
 // accounts.forEach(function (acc) {
 //   acc.minors = acc.movements.map(mov => parseMoneyToCents(`${mov}`));
 // });
+
+
+
+
+
+
+////// TODO: delete this ones later
+
+const max = account1.movements.reduce((acc, current, i, arr) => {
+  return acc > current ? acc : current
+}, account1.movements[0]);
+
+const avr =
+  account1.movements.length === 0 ?
+    0
+    : account1.movements.reduce((acc, current) => acc + current, 0)
+    / account1.movements.length;
+
+const jessicaAcc = accounts.find(acc => acc.owner === "Jessica Davis");
+const jessicaFirstDeposit = jessicaAcc.movements.find(mov => mov > 0)
+/**
+ *
+console.log(jessicaAcc, jessicaFirstDeposit);
+console.log(max);
+console.log(avr);
+*/ 
