@@ -19,7 +19,7 @@
     <p class="welcome">Log in to get started</p>
     <img src="assets/logo.png" alt="Logo" class="logo" />
     <form class="login">
-      <input type="text" placeholder="user" class="login__input login__input--user" />
+      <input type="text" placeholder="username" class="login__input login__input--user" />
       <!-- In practice, use type="password" -->
       <input type="password" placeholder="PIN" maxlength="4" class="login__input login__input--pin" />
       <button class="login__btn">&rarr;</button>
@@ -69,12 +69,13 @@
     <div class="operation operation--transfer">
       <h2>Transfer money</h2>
       <form class="form form--transfer">
-        <input type="text" class="form__input form__input--to" />
+        <input type="text" placeholder="username" class="form__input form__input--to" />
         <input type="number" class="form__input form__input--amount" />
         <button class="form__btn form__btn--transfer">&rarr;</button>
         <label class="form__label">Transfer to</label>
         <label class="form__label">Amount</label>
       </form>
+      <p class="message--transfer">Transfer an amount to username.</p>
     </div>
 
     <!-- OPERATION: LOAN -->

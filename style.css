@@ -50,7 +50,7 @@ nav {
   font-size: 1.6rem;
   font-family: inherit;
   text-align: center;
-  width: 12rem;
+  width: 15rem;
   border-radius: 10rem;
   margin-right: 1rem;
   color: inherit;
@@ -216,6 +216,10 @@ nav {
 
 .operation--transfer {
   background-image: linear-gradient(to top left, #ffb003, #ffcb03);
+}
+.message--transfer {
+  text-align: center;
+  color: #a97e00;
 }
 
 .operation--loan {

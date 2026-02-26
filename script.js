@@ -61,6 +61,9 @@ const inputLoanAmount = document.querySelector('.form__input--loan-amount');
 const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
 
+// me 
+const messageTransferEl = document.querySelector(".message--transfer")
+
 
 const createUsernames = function (accs) {
   accs.forEach(function (acc) {
@@ -108,7 +111,6 @@ const calcAndDisplayBalance = function (movements) {
   const balance = movements.reduce((acc, current) => acc + current, 0);
   labelBalance.textContent = `$${balance.toFixed(2)}`;
 }
-calcAndDisplayBalance(account1.movements);
 
 // in
 const calcAndDisplayTotalIn = function (movements) {
@@ -133,9 +135,17 @@ const calcAndDisplayTotalInterest = function (movements, interestRate) {
   labelSumInterest.textContent = `$${totalInterest.toFixed(2)}`;
 }
 
+const updateUI = function (account) {
+  displayMovements(account.movements);
+  calcAndDisplayBalance(account.movements);
+  calcAndDisplayTotalIn(account.movements);
+  calcAndDisplayTotalOut(account.movements);
+  calcAndDisplayTotalInterest(account.movements, account.interestRate);
+}
+
 let currentAccount;
 
-const displayAndUpdateUI = function () {
+const showAppUIAndResetLoginForm = function () {
   containerApp.style.opacity = "1";
   inputTransferTo.focus();
   inputLoginUsername.value = "";
@@ -174,20 +184,152 @@ btnLogin.addEventListener("click", (e) => {
 
   console.log("logining...");
   // display ui
-  displayAndUpdateUI();
+  showAppUIAndResetLoginForm();
   // display welcome message with first name
   labelWelcome.textContent = `Welcome back, ${currentAccount.owner.split(" ")[0]}`;
-  // display movements
-  displayMovements(currentAccount.movements);
-  // dispaly balance
-  calcAndDisplayBalance(currentAccount.movements);
-  // display sum
-  calcAndDisplayTotalIn(currentAccount.movements);
-  calcAndDisplayTotalOut(currentAccount.movements);
-  calcAndDisplayTotalInterest(currentAccount.movements, currentAccount.interestRate);
+  updateUI(currentAccount);
 
   console.log(currentAccount);
 });
+
+// initial message
+let initialMsg = messageTransferEl.textContent;
+let defaultColor = messageTransferEl.style.color;
+// show transfter failure message for 5 sec
+const showTransferMessage = function (type = "INFORMATION", code) {
+  const inSuffecientFundsMsg = "Insufficient funds"
+  const usernameNotFoundMsg = "Username not found"
+  const negativeAmountMsg = "Amount can't be negative, minimum amount: $1"
+  const sameAccountMsg = "Can't transfer money to your own account";
+  const successMsg = "Amount sent!"
+  if (type === "INFORMATION") {
+    messageTransferEl.textContent = initialMsg
+  } else if (type === "ERROR") {
+    // not found
+    if (code === 404) {
+      messageTransferEl.textContent = usernameNotFoundMsg;
+      messageTransferEl.style.color = "#BB1111";
+      setTimeout(function () {
+        messageTransferEl.textContent = initialMsg;
+        messageTransferEl.style.color = defaultColor;
+      }, 5000);
+
+      // insuffecient balance
+    } else if (code === 402) {
+      messageTransferEl.textContent = inSuffecientFundsMsg;
+      messageTransferEl.style.color = "#BB1111";
+      setTimeout(function () {
+        messageTransferEl.textContent = initialMsg;
+        messageTransferEl.style.color = defaultColor;
+      }, 5000);
+
+      // bad request: negative amount
+    } else if (code === 400) {
+      messageTransferEl.textContent = negativeAmountMsg;
+      messageTransferEl.style.color = "#BB1111";
+      setTimeout(function () {
+        messageTransferEl.textContent = initialMsg;
+        messageTransferEl.style.color = defaultColor;
+      }, 5000);
+
+      // same account
+    } else if (code === 422) {
+      messageTransferEl.textContent = sameAccountMsg;
+      messageTransferEl.style.color = "#BB1111";
+      setTimeout(function () {
+        messageTransferEl.textContent = initialMsg;
+        messageTransferEl.style.color = defaultColor;
+      }, 5000);
+    }
+
+  } else if (type === "SUCCESS" && code === 200) {
+    messageTransferEl.textContent = successMsg;
+    messageTransferEl.style.color = "#11BB11";
+    setTimeout(function () {
+      messageTransferEl.textContent = initialMsg;
+      messageTransferEl.style.color = defaultColor;
+    }, 5000);
+
+  }
+}
+
+btnTransfer.addEventListener("click", function (e) {
+  // prevent to reload page 
+  e.preventDefault();
+  // check if inputs are filled
+  if (!inputTransferTo.value || !inputTransferAmount.value) {
+    if (!inputTransferTo.value) {
+      inputTransferTo.focus();
+      return;
+    } else {
+      inputTransferAmount.focus();
+      return;
+    }
+  }
+
+
+
+
+  const usernameTo = inputTransferTo.value;
+  const amountTransfer = inputTransferAmount.value;
+
+  const reciever = accounts.find((acc) => {
+    return usernameTo === acc.username;
+  });
+  const amount = Number(amountTransfer);
+
+  // sender balance 
+  const senderBalance = currentAccount.movements.reduce((acc, current) => acc + current, 0);
+
+  // validate amount 
+  // minimum amount 1
+  if (amount < 1) {
+    showTransferMessage("ERROR", 400);
+    return;
+  }
+  if (!reciever) {
+    showTransferMessage("ERROR", 404);
+    inputTransferTo.focus();
+    return;
+  }
+  if (reciever.username === currentAccount.username) {
+    showTransferMessage("ERROR", 422);
+    return;
+  }
+  if (amount > senderBalance) {
+    showTransferMessage("Error", 402);
+    return;
+  }
+
+
+  // subtracting from current account
+  currentAccount.movements.push(-amount);
+
+
+  // add amount to reciever 
+  reciever.movements.push(amount);
+
+
+  ////// update ui
+
+  // show success message
+  showTransferMessage("SUCCESS", 200);
+
+  //// update values
+  updateUI(currentAccount);
+
+
+
+
+
+  console.log(`${amount} to ${reciever.username}`);
+  console.log(currentAccount);
+  console.log(reciever);
+})
+
+
+
+
 
 
 
@@ -236,8 +378,6 @@ const parseMoneyToCents = function (str, decimalSeprator = ".") {
 
 
 
-
-
 ////// TODO: delete this ones later
 
 const max = account1.movements.reduce((acc, current, i, arr) => {
@@ -257,4 +397,4 @@ const jessicaFirstDeposit = jessicaAcc.movements.find(mov => mov > 0)
 console.log(jessicaAcc, jessicaFirstDeposit);
 console.log(max);
 console.log(avr);
-*/ 
+*/
