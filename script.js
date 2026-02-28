@@ -1,4 +1,6 @@
-'use strict';
+import { findAcc } from "./helper.js"
+
+
 
 /////////////////////////////////////////////////
 /////////////////////////////////////////////////
@@ -64,6 +66,10 @@ const inputClosePin = document.querySelector('.form__input--pin');
 // me 
 const messageTransferEl = document.querySelector(".message--transfer")
 
+let currentAccount;
+
+
+
 
 const createUsernames = function (accs) {
   accs.forEach(function (acc) {
@@ -89,16 +95,42 @@ formatMonies(accounts);
 
 
 
-
-const displayMovements = function (movements) {
+/**
+ * 
+ * @param {Array} movements the array data to be sorted
+ * @param {*} sortType wether to sort it `0=Ascending` || `1=descending` || `-1=insertion order (default)`
+ */
+const displayMovements = function (movements, sortType = -1) {
   containerMovements.innerHTML = '';
-  movements.forEach(function (mov, i) {
+
+  let movs;
+  // do not change
+  if (sortType === -1) {
+    movs = movements;
+  }
+  // ascedning 
+  else if (sortType === 0) {
+    movs = movements.slice().sort((a, b) => {
+      // if ((a - b) < 0) return -1; // * keep it -> a, b
+      // if ((a - b) > 0) return 1;  // * switch -> b, a
+      // if ((a - b) === 0) return 0;// * keep it > a, b
+
+      // in one shot 
+      return a - b;
+    });
+  }
+  // descending 
+  else if (sortType === 1) {
+    movs = movements.slice().sort((a, b) => b - a);
+  }
+
+  movs.forEach(function (mov, i) {
     const movType = mov > 0 ? "deposit" : "withdrawal";
     const movEl =
       `
         <div class="movements__row">
           <div class="movements__type movements__type--${movType}">${i + 1} ${movType}</div>
-          <div class="movements__value">${mov}</div>
+          <div class="movements__value">${mov.toFixed(2)}</div>
         </div>
         `;
     containerMovements.insertAdjacentHTML("afterbegin", movEl);
@@ -110,6 +142,7 @@ const displayMovements = function (movements) {
 const calcAndDisplayBalance = function (movements) {
   const balance = movements.reduce((acc, current) => acc + current, 0);
   labelBalance.textContent = `$${balance.toFixed(2)}`;
+  return Number(balance.toFixed(2));
 }
 
 // in
@@ -137,22 +170,31 @@ const calcAndDisplayTotalInterest = function (movements, interestRate) {
 
 const updateUI = function (account) {
   displayMovements(account.movements);
-  calcAndDisplayBalance(account.movements);
+  // returns the balance
+  const balance = calcAndDisplayBalance(account.movements);
+
+  // adding balance property to the account obj
+  account.balance = balance;
+
+  // does not return data
   calcAndDisplayTotalIn(account.movements);
   calcAndDisplayTotalOut(account.movements);
   calcAndDisplayTotalInterest(account.movements, account.interestRate);
 }
 
-let currentAccount;
 
 const showAppUIAndResetLoginForm = function () {
   containerApp.style.opacity = "1";
   inputTransferTo.focus();
   inputLoginUsername.value = "";
   inputLoginPin.value = "";
-
-
 }
+const hideAppUIAndResetLoginForm = function () {
+  containerApp.style.opacity = "0";
+  inputLoginUsername.value = "";
+  inputLoginPin.value = "";
+}
+
 const showLoginFailure = function () {
   const prevMsg = labelWelcome.textContent;
   labelWelcome.textContent = "Wrong credentials.";
@@ -163,19 +205,32 @@ const showLoginFailure = function () {
   }, 5000);
 }
 
-const validateCredentials = function (username, pin) {
-  return accounts.find(
-    (acc) => username === acc.username
-      && pin === acc.pin);
-};
+
+
 
 
 // login
 btnLogin.addEventListener("click", (e) => {
   // to prevent submiting (submitting reload the page)
   e.preventDefault();
+
+  // handling focus and empty fields
+  if (!inputLoginUsername.value || !inputLoginPin.value) {
+    if (!inputLoginUsername.value) {
+      inputLoginUsername.focus();
+      return;
+    } else {
+      inputLoginPin.focus();
+      return;
+    }
+  }
+
+  const loginingUsername = inputLoginUsername.value;
+  const loginingPin = inputLoginPin.value;
+
+
   // validate credentials
-  currentAccount = validateCredentials(inputLoginUsername.value, inputLoginPin.value);
+  currentAccount = findAcc(loginingUsername, loginingPin, accounts);
 
   if (!currentAccount) {
     showLoginFailure();
@@ -253,10 +308,13 @@ const showTransferMessage = function (type = "INFORMATION", code) {
   }
 }
 
+// transfering 
 btnTransfer.addEventListener("click", function (e) {
   // prevent to reload page 
   e.preventDefault();
   // check if inputs are filled
+
+  // handling focus and empty fields
   if (!inputTransferTo.value || !inputTransferAmount.value) {
     if (!inputTransferTo.value) {
       inputTransferTo.focus();
@@ -268,8 +326,6 @@ btnTransfer.addEventListener("click", function (e) {
   }
 
 
-
-
   const usernameTo = inputTransferTo.value;
   const amountTransfer = inputTransferAmount.value;
 
@@ -278,8 +334,7 @@ btnTransfer.addEventListener("click", function (e) {
   });
   const amount = Number(amountTransfer);
 
-  // sender balance 
-  const senderBalance = currentAccount.movements.reduce((acc, current) => acc + current, 0);
+
 
   // validate amount 
   // minimum amount 1
@@ -296,8 +351,8 @@ btnTransfer.addEventListener("click", function (e) {
     showTransferMessage("ERROR", 422);
     return;
   }
-  if (amount > senderBalance) {
-    showTransferMessage("Error", 402);
+  if (amount > currentAccount.balance) {
+    showTransferMessage("ERROR", 402);
     return;
   }
 
@@ -314,6 +369,10 @@ btnTransfer.addEventListener("click", function (e) {
 
   // show success message
   showTransferMessage("SUCCESS", 200);
+  // emtpying fields
+  inputTransferTo.value = "";
+  inputTransferAmount.value = "";
+  inputTransferTo.focus();
 
   //// update values
   updateUI(currentAccount);
@@ -329,72 +388,120 @@ btnTransfer.addEventListener("click", function (e) {
 
 
 
+// requesting a loan
+btnLoan.addEventListener("click", function (e) {
+  // to prevent from reloading
+  e.preventDefault();
+
+  // handling focus and empty fields
+  if (!inputLoanAmount.value) {
+    inputLoanAmount.focus();
+    return;
+  }
+  const amountLoan = Number(inputLoanAmount.value);
+
+  // *  rule: user only can get loan if ever has deposited at least 10% of the loan 
+  // *  minimum amount is 1
+
+  // validate amount
+  if (amountLoan < 1
+    || !currentAccount.movements.some((mov) => mov >= amountLoan * (10 / 100))) {
+    // TODO: show failure message
+    return;
+  }
+  // add a deposit 
+  currentAccount.movements.push(amountLoan);
+
+  // empty fields
+  inputLoanAmount.value = "";
+
+  // updateUI
+  updateUI(currentAccount);
+})
+
+// closing an account
+btnClose.addEventListener("click", function (e) {
+  // to prevent from reloading the page 
+  e.preventDefault();
+
+  // handling focus and empty fields
+  if (!inputCloseUsername.value || !inputClosePin.value) {
+    if (!inputCloseUsername.value) {
+      inputCloseUsername.focus();
+      return;
+    } else {
+      inputClosePin.focus();
+      return;
+    }
+  }
+
+
+  const closingUsername = inputCloseUsername.value;
+  const closingPin = inputClosePin.value;
+
+  // deleting account from the list
+  if (closingUsername !== currentAccount.username) return;
+  // TODO: show failure message if account is others
+
+  const closingAcc = findAcc(closingUsername, closingPin, accounts);
+  if (!closingAcc) {
+    // TODO: show failure message if account not found
+    return;
+  } else {
+    accounts.splice(accounts.indexOf(closingAcc), 1);
+  }
+
+  // empty close form fields 
+  inputCloseUsername.value = "";
+  inputClosePin.value = "";
+  // hide ui
+  hideAppUIAndResetLoginForm();
 
 
 
 
+  console.log(`username: ${closingUsername} pin: ${closingPin} closingAcc: ${closingAcc}`);
+  console.log(accounts);
+})
 
 
-///////// helpers
+// sorting 
+let sorted = false;
+btnSort.addEventListener("click", function (e) {
+  // to prevent from reload 
+  e.preventDefault();
+  if (!sorted) {
+    displayMovements(currentAccount.movements, 0);
+    sorted = true;
+    console.log("ascending");
+  } else {
+    displayMovements(currentAccount.movements, 1);
+    sorted = false;
+    console.log("descending");
 
-
-///////// chaging currencies 
-const euroToUsd = 1.09;
-const movementsUsds = account1.movements.map(function (mov) {
-  return (mov * euroToUsd).toFixed(2);
+  }
 });
-// console.log("--------- movements euros --------");
-// console.log(account1.movements);
-// console.log("--------- movements usds  --------");
-// console.log(movementsUsds);
-
-
-///////// creating arr for dopsit and withdrawals
-const deposits = account1.movements.filter(mov => mov > 0);
-const withdrawals = account1.movements.filter(mov => mov < 0);
-// console.log(deposits, withdrawals);
-
-// * just to make numbers have floating points: 20 => 20.00
-
-const parseMoneyToCents = function (str, decimalSeprator = ".") {
-  if (typeof str !== "string") {
-    throw new Error("Money must be sent as string.")
-  }
-  if (!/^-?\d+(\.\d{1,2})?$/.test(str)) {
-    throw new Error("Invalid money format. format e.g. ##.##, ##.#, ##");
-  }
-  const isNegative = str.startsWith("-");
-  const normalized = isNegative ? str.slice(1) : str;
-
-  const [major, minor = "00"] = normalized.split(`${decimalSeprator}`);
-  const value = Number(major) * 100 + Number(minor.padEnd(2, "0")); ''
-  return isNegative ? -value : value;
-}
-
-// accounts.forEach(function (acc) {
-//   acc.minors = acc.movements.map(mov => parseMoneyToCents(`${mov}`));
-// });
 
 
 
 
-////// TODO: delete this ones later
 
-const max = account1.movements.reduce((acc, current, i, arr) => {
-  return acc > current ? acc : current
-}, account1.movements[0]);
+// statistics : total money movements
 
-const avr =
-  account1.movements.length === 0 ?
-    0
-    : account1.movements.reduce((acc, current) => acc + current, 0)
-    / account1.movements.length;
+// const allMovements =
+//   accounts.map(acc => acc.movements)
+//     .flat(1)
+//     .reduce((acc, current) => {
+//       const cur = current < 0 ? current * (-1) : current
+//       console.log(acc, cur);
+//       return Number(acc.toFixed(2)) + cur;
+//     });
 
-const jessicaAcc = accounts.find(acc => acc.owner === "Jessica Davis");
-const jessicaFirstDeposit = jessicaAcc.movements.find(mov => mov > 0)
-/**
- *
-console.log(jessicaAcc, jessicaFirstDeposit);
-console.log(max);
-console.log(avr);
-*/
+const allMovements =
+  accounts.flatMap(acc => acc.movements)
+    .reduce((acc, current) => {
+      const cur = current < 0 ? current * (-1) : current
+      // console.log(acc, cur);
+      return Number(acc.toFixed(2)) + cur;
+    });
+// console.log(allMovements);
