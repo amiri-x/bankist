@@ -289,6 +289,11 @@ h2 {
   outline: none;
   background-color: rgba(255, 255, 255, 0.8);
 }
+.form__btn:disabled,
+.form__input:disabled {
+  opacity: 0.8;
+  cursor: wait;
+}
 
 .logout-timer {
   padding: 0 0.3rem;
@@ -299,4 +304,6 @@ h2 {
 
 .timer {
   font-weight: 600;
+  display: inline-block;
+  width: 3.8rem;
 }

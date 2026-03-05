@@ -1,4 +1,4 @@
-import { findAcc, getDateAndTime, getDate, getDaysPassed } from "./helper.js"
+import { findAcc, getDateAndTime, getDate, getDaysPassed, formatNum } from "./helper.js"
 
 
 
@@ -46,7 +46,7 @@ const account2 = {
         '2026-03-04T12:01:20.894Z',
     ],
     currency: 'EUR',
-    locale: 'pt-PT', // de-DE
+    locale: 'fr-FR', // de-DE
 };
 
 const account3 = {
@@ -124,7 +124,9 @@ const inputClosePin = document.querySelector('.form__input--pin');
 // me 
 const messageTransferEl = document.querySelector(".message--transfer")
 
+// handles whole app interface data representations 
 let currentAccount;
+let currectTimer;
 
 
 
@@ -142,34 +144,28 @@ const createUsernames = function (accs) {
 }
 createUsernames(accounts);
 
-// to format numbers as money: 10 => 10.00
-const formatMonies = function (accs) {
-    accs.forEach(function (acc) {
-        acc.movements = acc.movements.map(mov => Number(mov.toFixed(2)));
-    });
-}
-formatMonies(accounts);
 
 
 
 
 /**
  * 
- * @param {Number[]} movements the array data to be sorted
+ * @param {any} acc the acc containing array movements and  data to be sorted
+ * @param {String[]} movementsDates the movementDates in ISO format
  * @param {*} sortType wether to sort it `0=Ascending` || `1=descending` || `-1=insertion order (default)`
  */
-const displayMovementsAndDates = function (movements, movementsDates, sortType = -1) {
+const displayMovementsAndDates = function (acc, movementsDates, sortType = -1) {
     containerMovements.innerHTML = '';
 
     // * sorting
     let movs;
     // do not change
     if (sortType === -1) {
-        movs = movements;
+        movs = acc.movements;
     }
     // ascedning 
     else if (sortType === 0) {
-        movs = movements.slice().sort((a, b) => {
+        movs = acc.movements.slice().sort((a, b) => {
             // if ((a - b) < 0) return -1; // * keep it -> a, b
             // if ((a - b) > 0) return 1;  // * switch -> b, a
             // if ((a - b) === 0) return 0;// * keep it > a, b
@@ -180,7 +176,7 @@ const displayMovementsAndDates = function (movements, movementsDates, sortType =
     }
     // descending 
     else if (sortType === 1) {
-        movs = movements.slice().sort((a, b) => b - a);
+        movs = acc.movements.slice().sort((a, b) => b - a);
     }
 
 
@@ -189,13 +185,14 @@ const displayMovementsAndDates = function (movements, movementsDates, sortType =
         const movType = mov > 0 ? "deposit" : "withdrawal";
         // converting iso dates to dd/MM/YYYY
         const date = getDaysPassed(new Date(movementsDates[i]), new Date());
-        console.log(date, "here")
+        // formatting the monies to locales accordingly 
+        const money = formatNum(mov, acc.locale, { style: "currency", currency: acc.currency });
         const movEl =
             `
             <div class="movements__row">
                 <div class="movements__type movements__type--${movType}">${i + 1} ${movType}</div>
                 <div class="movements__date">${date}</div>
-                <div class="movements__value">${mov.toFixed(2)}</div>
+                <div class="movements__value">${money}</div>
             </div>
             `;
         containerMovements.insertAdjacentHTML("afterbegin", movEl);
@@ -207,49 +204,85 @@ const displayMovementsAndDates = function (movements, movementsDates, sortType =
 /**
  * 
  * @param {Number []} movements the array data 
+ * @param {string} locale the locale 
+ * @param {string} currency the currency
  * @returns calculated final __balance__ from all movements 
  */
-const calcAndDisplayBalance = function (movements) {
+const calcAndDisplayBalance = function (
+    movements,
+    locale = "en-US",
+    currency = "USD"
+) {
     const balance = movements.reduce((acc, current) => acc + current, 0);
-    labelBalance.textContent = `$${balance.toFixed(2)}`;
+    labelBalance.textContent = formatNum(balance, locale, { style: "currency", currency })
     return Number(balance.toFixed(2));
 }
 
 // in
-const calcAndDisplayTotalIn = function (movements) {
+const calcAndDisplayTotalIn = function (
+    movements,
+    locale = "en-US",
+    currency = "USD"
+) {
     const totalIn =
         movements.filter(mov => mov > 0) // finding deposits
             .reduce((acc, current) => acc + current, 0);
-    labelSumIn.textContent = `$${totalIn.toFixed(2)}`;
+    labelSumIn.textContent = formatNum(totalIn, locale, { style: "currency", currency });
 }
 // out
-const calcAndDisplayTotalOut = function (movements) {
+const calcAndDisplayTotalOut = function (
+    movements,
+    locale = "en-US",
+    currency = "USD"
+) {
     const totalOut = movements.filter(mov => mov < 0)
         .reduce((acc, mov) => acc + mov, 0);
-    labelSumOut.textContent = `$${Math.abs(totalOut).toFixed(2)}`;
+    labelSumOut.textContent = formatNum(Math.abs(totalOut), locale, { style: "currency", currency });
 }
 // interest
-const calcAndDisplayTotalInterest = function (movements, interestRate) {
+const calcAndDisplayTotalInterest = function (
+    movements,
+    interestRate,
+    locale = "en-US",
+    currency = "USD"
+) {
 
     const totalInterest = movements.filter(mov => mov > 0)
         .map(mov => mov * (interestRate / 100))
         .filter((int) => int >= 1) // only interests above 1
         .reduce((acc, current) => acc + current);
-    labelSumInterest.textContent = `$${totalInterest.toFixed(2)}`;
+    labelSumInterest.textContent = formatNum(totalInterest, locale, { style: "currency", currency })
 }
 
 const updateUI = function (account) {
-    displayMovementsAndDates(account.movements, account.movementsDates);
+    displayMovementsAndDates(account, account.movementsDates);
 
-    const balance = calcAndDisplayBalance(account.movements);
+    const balance = calcAndDisplayBalance(
+        account.movements,
+        account.locale,
+        account.currency
+    );
 
     // adding balance property to the account obj
     account.balance = balance;
 
     // does not return data
-    calcAndDisplayTotalIn(account.movements);
-    calcAndDisplayTotalOut(account.movements);
-    calcAndDisplayTotalInterest(account.movements, account.interestRate);
+    calcAndDisplayTotalIn(
+        account.movements,
+        account.locale,
+        account.currency
+    );
+    calcAndDisplayTotalOut(
+        account.movements,
+        account.locale,
+        account.currency
+    );
+    calcAndDisplayTotalInterest(
+        account.movements,
+        account.interestRate,
+        account.locale,
+        account.currency
+    );
 
     // show dates and times 
     labelDate.textContent = getDateAndTime(new Date());
@@ -280,7 +313,36 @@ const showLoginFailure = function () {
 
 
 
+// timer
+const startLogOutTimer = function () {
+    // time (sec)
+    let time = 125;
 
+
+    const tick = function () {
+        const min = Math.trunc(time / 60);
+        const sec = time % 60;
+
+        // display
+        labelTimer.textContent = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+
+        // if time is up -> logout
+        if (time <= 0) {
+            hideAppUIAndResetLoginForm();
+            // stop the timer
+            if (currectTimer) clearInterval(currectTimer);
+            time = 125;
+        }
+
+        // decrease time
+        time--;
+    }
+
+    // immediately calling it, to solve the first 1s issue
+    tick();
+
+    return setInterval(tick, 1000);
+}
 
 // login
 btnLogin.addEventListener("click", (e) => {
@@ -311,6 +373,11 @@ btnLogin.addEventListener("click", (e) => {
     }
 
     console.log("logining...");
+
+    // start log out timer
+    if (currectTimer) clearInterval(currectTimer);
+    currectTimer = startLogOutTimer();
+
     // display ui
     showAppUIAndResetLoginForm();
     // display welcome message with first name
@@ -442,6 +509,9 @@ btnTransfer.addEventListener("click", function (e) {
     reciever.movementsDates.push(new Date());
 
 
+    // reset the current timer to track activity 
+    if (currectTimer) clearInterval(currectTimer);
+    currectTimer = startLogOutTimer();
 
     ////// update ui
 
@@ -462,7 +532,7 @@ btnTransfer.addEventListener("click", function (e) {
     console.log(`${amount} to ${reciever.username}`);
     console.log(currentAccount);
     console.log(reciever);
-})
+});
 
 
 
@@ -483,20 +553,38 @@ btnLoan.addEventListener("click", function (e) {
 
     // validate amount
     if (amountLoan < 1
-        || !currentAccount.movements.some((mov) => mov >= amountLoan * (10 / 100))) {
+        || !currentAccount.movements.some((mov) => mov >= amountLoan * (10 / 100))
+    ) {
         // TODO: show failure message
         return;
     }
-    // add a deposit 
-    currentAccount.movements.push(amountLoan);
-    currentAccount.movementsDates.push(new Date());
 
-    // empty fields
+
+    ////// adding a deposit
+
+    // empty field to not freeze ui 
     inputLoanAmount.value = "";
+    // disable field and button
+    inputLoanAmount.disabled = true;
+    btnLoan.disabled = true;
+    // TODO: show success message 
 
-    // updateUI
-    updateUI(currentAccount);
-})
+    // reset timer to not freeze ui
+    if (currectTimer) clearInterval(currectTimer);
+    currectTimer = startLogOutTimer();
+
+    // after 5sec
+    setTimeout(function () {
+        currentAccount.movements.push(amountLoan);
+        currentAccount.movementsDates.push(new Date());
+        // able field and button
+        inputLoanAmount.disabled = false;
+        btnLoan.disabled = false;
+
+        // updateUI
+        updateUI(currentAccount);
+    }, 5000);
+});
 
 // closing an account
 btnClose.addEventListener("click", function (e) {
@@ -541,7 +629,7 @@ btnClose.addEventListener("click", function (e) {
 
     console.log(`username: ${closingUsername} pin: ${closingPin} closingAcc: ${closingAcc}`);
     console.log(accounts);
-})
+});
 
 
 // sorting 
@@ -550,13 +638,11 @@ btnSort.addEventListener("click", function (e) {
     // to prevent from reload 
     e.preventDefault();
     if (!sorted) {
-        displayMovementsAndDates(currentAccount.movements, currentAccount.movementsDates, 0);
+        displayMovementsAndDates(currentAccount, currentAccount.movementsDates, 0);
         sorted = true;
-        console.log("ascending");
     } else {
-        displayMovementsAndDates(currentAccount.movements, currentAccount.movementsDates, 1);
+        displayMovementsAndDates(currentAccount, currentAccount.movementsDates, 1);
         sorted = false;
-        console.log("descending");
 
     }
 });
@@ -565,22 +651,11 @@ btnSort.addEventListener("click", function (e) {
 
 
 
-// statistics : total money movements
-
-// const allMovements =
-//   accounts.map(acc => acc.movements)
-//     .flat(1)
-//     .reduce((acc, current) => {
-//       const cur = current < 0 ? current * (-1) : current
-//       console.log(acc, cur);
-//       return Number(acc.toFixed(2)) + cur;
-//     });
 
 const allMovements =
     accounts.flatMap(acc => acc.movements)
         .reduce((acc, current) => {
             const cur = current < 0 ? current * (-1) : current
-            // console.log(acc, cur);
             return Number(acc.toFixed(2)) + cur;
         });
-// console.log(allMovements);
+

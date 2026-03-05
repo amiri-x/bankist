@@ -53,6 +53,20 @@ export function moneyToCents(money, decimalSeprator = ".") {
     return isNegative ? -value : value;
 }
 
+/**
+ * 
+ * @param {Number} num The number to be fomatted
+ * @param {string} locale The locale to format accoringly 
+ * @param {Intl.NumberFormatOptions} options options to apply 
+ * @returns a formatted number in string
+ * #### e.g 
+ * ```js
+ * formatNum(1000.99, "en-US", {style: "currency", currency: "USD"}) // $1,000.99
+ * ```
+ */
+export function formatNum(num, locale, options) {
+    return Intl.NumberFormat(locale, options).format(num);
+}
 
 /**
  * 
@@ -103,7 +117,6 @@ export function getDaysPassed(oldDate, newDate) {
 
     const date = getDate(new Date(oldDate));
 
-    console.log(oldDate, newDate, daysPassed, dateDiff);
 
     switch (daysPassed) {
         case 0: return "TODAY"
