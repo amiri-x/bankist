@@ -14,7 +14,7 @@ It was built for learning purposes and extended with personal refactoring and ad
 
 Original project - © Jonas Schmetdmann
 
-## Improvements i made
+## Improvements I Made
 
 **Login:**
 
